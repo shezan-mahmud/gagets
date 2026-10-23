@@ -1,0 +1,21 @@
+# Production-like stack: PostgreSQL + app. Put Caddy/Nginx (HTTPS) in front — see docs/DEPLOYMENT.md
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gadget
+      POSTGRES_USER: gadget
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U gadget"], interval: 5s, retries: 10 }
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://gadget:${POSTGRES_PASSWORD}@db:5432/gadget
+    depends_on: { db: { condition: service_healthy } }
+    ports: ["127.0.0.1:3000:3000"]
+    volumes: [uploads:/app/uploads]
+volumes: { pgdata: {}, uploads: {} }
